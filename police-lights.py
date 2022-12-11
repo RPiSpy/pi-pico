@@ -31,9 +31,12 @@ pixels = Neopixel(2, 0, NEOPIXEL_GPIO, "GRB")
 brightness_l = NEOPIXEL_BRIGHTNESS_LOW
 brightness_h = NEOPIXEL_BRIGHTNESS_HIGH
 
-time_1 = 35
-time_2 = 300
+# Quick flash delay (ms)
+delay_short = 35
+# Delay between switching pixels (ms)
+delay_long = 300
 
+# Set starting colours of neopixels
 colour_p1 = COLOUR_RED
 colour_p2 = COLOUR_BLUE
 
@@ -41,37 +44,37 @@ while True:
 
     # Quick flash Pixel #1
     for x in range(0,3):
-        time.sleep_ms(time_1)
+        time.sleep_ms(delay_short)
 
         pixels.set_pixel(0, colour_p1, brightness_l)
         pixels.set_pixel(1, colour_p2, brightness_h)
         pixels.show()
     
-        time.sleep_ms(time_1)
+        time.sleep_ms(delay_short)
 
         pixels.set_pixel(0, colour_p1, brightness_l)
         pixels.set_pixel(1, colour_p2, brightness_l)
         pixels.show()
 
-    time.sleep_ms(time_2)
+    time.sleep_ms(delay_long)
 
     # Quick Flash Pixel #2
     for x in range(0,3):
-        time.sleep_ms(time_1)
+        time.sleep_ms(delay_short)
 
         pixels.set_pixel(0, colour_p1, brightness_h)
         pixels.set_pixel(1, colour_p2, brightness_l)
         pixels.show()
     
-        time.sleep_ms(time_1)
+        time.sleep_ms(delay_short)
 
         pixels.set_pixel(0, colour_p1, brightness_l)
         pixels.set_pixel(1, colour_p2, brightness_l)
         pixels.show()
 
-    time.sleep_ms(time_2)
+    time.sleep_ms(delay_long)
     
-    # Swap colours
+    # Swap pixel colours
     if colour_p1 == COLOUR_RED:
         colour_p1 = COLOUR_BLUE
         colour_p2 = COLOUR_RED

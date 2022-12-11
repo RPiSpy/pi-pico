@@ -16,6 +16,10 @@
 
 from machine import Pin, Timer
 
+# Frequency that LED is toggled.
+# 2Hz is 2 toggles per second = 1 flash per second
+BLINK_FREQ = 2
+
 led = Pin("LED", Pin.OUT)
 
 # Create timer object
@@ -26,4 +30,4 @@ def blink(timer):
     led.toggle()
 
 # Setup timer to call blink function every 2 seconds
-timer.init(freq=2, mode=Timer.PERIODIC, callback=blink)
+timer.init(freq=BLINK_FREQ, mode=Timer.PERIODIC, callback=blink)
