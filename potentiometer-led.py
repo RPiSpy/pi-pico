@@ -3,7 +3,7 @@
 #
 # Micropython code for Raspberry Pi Pico w
 #
-# File     : potentiometer_led.py 
+# File     : potentiometer-led.py
 # Source   : https://github.com/RPiSpy/pi-pico
 #
 # Desc     : Read a potentiometer using ADC and control LED brightness

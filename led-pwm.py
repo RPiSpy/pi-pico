@@ -3,7 +3,7 @@
 #
 # Micropython code for Raspberry Pi Pico w
 #
-# File     : led_pwm.py 
+# File     : led-pwm.py
 # Source   : https://github.com/RPiSpy/pi-pico
 #
 # Desc     : Cycle the brightness of an LED using PWM

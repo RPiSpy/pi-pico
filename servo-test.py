@@ -3,7 +3,7 @@
 #
 # Micropython code for Raspberry Pi Pico w
 #
-# File     : police-lights.py
+# File     : servo-test.py
 # Source   : https://github.com/RPiSpy/pi-pico
 #
 # Desc     : Test file to operate servo over operating range
