@@ -17,19 +17,19 @@
 #-----------------------------------------------------------------------------#
 
 import time
-from machine import Pin, PWM
+from machine import Pin,PWM
 
 pwm = PWM(Pin(15))
 
 pwm.freq(1000)
 
 while True:
-    
+
     # Loop brightness from min to max
-    for duty in range(65025):
+    for duty in range(65535):
         pwm.duty_u16(duty)
-        time.sleep_ms(0.1)
+        time.sleep_us(5)
     # Loop brightness from max to min
     for duty in range(65025, 0, -1):
         pwm.duty_u16(duty)
-        time.sleep_ms(0.1)
+        time.sleep_us(5)

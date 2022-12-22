@@ -17,7 +17,7 @@
 #-----------------------------------------------------------------------------#
 
 import time
-from machine import Pin,ADC
+from machine import Pin,ADC,PWM
 
 # Define GPIO pins our hardware is connected to
 ADC_GPIO = 27
@@ -37,7 +37,7 @@ while True:
     adc_val = adc_obj.read_u16()
     
     # Set PWM duty value to ADC value
-    pwm.duty_u16(adc_value)
+    pwm.duty_u16(adc_val)
     
     # Wait 1 second
     time.sleep(1)
