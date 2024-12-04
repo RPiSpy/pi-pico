@@ -1,3 +1,42 @@
+#--------------------------------------
+#    ___  ___  _ ____          
+#   / _ \/ _ \(_) __/__  __ __ 
+#  / , _/ ___/ /\ \/ _ \/ // / 
+# /_/|_/_/  /_/___/ .__/\_, /  
+#                /_/   /___/   
+#
+#  ST7567S LCD 128x64 Screen
+#
+#  Library
+#
+# Author : Matt Hawkins
+# Date   : 28/11/2024
+#
+# https://www.raspberrypi-spy.co.uk/
+#
+# The MIT License (MIT)
+# Copyright 2024 Matt Hawkins
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the “Software”), to deal
+# in the Software without restriction, including without limitation the rights to
+# use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+# of the Software, and to permit persons to whom the Software is furnished to do
+# so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+#--------------------------------------
+
 from machine import I2C, Pin
 import time
 
@@ -7,6 +46,7 @@ class st7567s:
     LCD_CMD = 0x00  # Command mode
     LCD_DATA = 0x40  # Data mode
 
+    # Common commands used in functions
     CMD_DISPLAY_OFF=0xAE              # Turn display ON
     CMD_DISPLAY_ON=0xAF               # Turn display OFF
     CMD_ALL_PIXELS_OFF=0xA4           # Turn all pixels OFF
@@ -14,15 +54,18 @@ class st7567s:
     CMD_NORMAL=0xA6                   # Normal display (not inverted)
     CMD_INVERT=0xA7                   # Inverted display (pixels are reversed).
 
+    # Initial offset used during rotation
     LCD_DRAM_OFFSET=0x00
 
-    def __init__(self, scl_pin, sda_pin, width, height, freq=400000, addr=0x3f):
+    def __init__(self, scl_pin, sda_pin, addr=0x3f):
         
+        # Define local variables. Width and Height hardcoded
+        # because the ST7567 doesn't support any other sizes.
         self.addr = addr
-        self.width = width
-        self.height = height
+        self.width = 128
+        self.height = 64
         self.i2c = I2C(0, scl=Pin(scl_pin), sda=Pin(sda_pin), freq=400000)
-        self.buffer = bytearray(width * (height // 8))  # Screen buffer (1 byte per row of 8 vertical pixels)
+        self.buffer = bytearray(self.width * (self.height // 8))  # Screen buffer (1 byte per row of 8 vertical pixels)
 
     # Initialize the LCD
     def init(self):
@@ -41,7 +84,7 @@ class st7567s:
         self.send_command(0xB0)  # Set page address 0
         self.send_command(0xAF)  # Display on
 
-    # Basic LCD commands for ST7567
+    # Send command with retry
     def send_command(self, cmd):
         """Send a command byte to the LCD."""
         retrycount=0
@@ -51,14 +94,25 @@ class st7567s:
                 self.i2c.writeto(self.addr, bytes([self.LCD_CMD, cmd]))
                 errors=1
             except:
-                print("error")
+                print("  Error sending command. Retry ...")
                 retrycount=retrycount+1
                 errors=0
 
+    # Send data with retry
     def send_data(self, data):
         """Send data bytes to the LCD."""
-        self.i2c.writeto(self.addr, bytes([self.LCD_DATA]) + bytes(data))
+        retrycount=0
+        errors=0
+        while (retrycount<3 and errors==0):
+            try:
+                self.i2c.writeto(self.addr, bytes([self.LCD_DATA]) + bytes(data))
+                errors=1
+            except:
+                print("  Error sending data. Retry ...")
+                retrycount=retrycount+1
+                errors=0
 
+    # Set contrast
     def set_contrast(self, level):
         """
         Set the contrast level of the ST7567 LCD.
@@ -77,6 +131,7 @@ class st7567s:
             self.buffer[i] = 0
         self.update_screen()
 
+    # Set a pixel
     def set_pixel(self, x, y, color):
         """
         Sets a single pixel in the buffer.
@@ -97,7 +152,8 @@ class st7567s:
             self.buffer[byte_index] |= (1 << bit)  # Turn the bit on
         else:
             self.buffer[byte_index] &= ~(1 << bit)  # Turn the bit off
-            
+         
+    # Draw rectangle
     def draw_rectangle(self, x, y, width, height, color):
         """
         Draws a rectangle on the screen.
@@ -119,6 +175,7 @@ class st7567s:
             self.set_pixel(x, i, color)              # Left edge
             self.set_pixel(x + width - 1, i, color)  # Right edge
 
+    # Draw filled rectangle
     def fill_rectangle(self, x, y, width, height, color):
         """
         Draws a filled rectangle on the screen.
@@ -134,6 +191,7 @@ class st7567s:
             for j in range(x, x + width):
                 self.set_pixel(j, i, color)
 
+    # Draw circle
     def draw_circle(self, cx, cy, radius, color):
         """
         Draws a circle using the midpoint circle algorithm.
@@ -165,6 +223,7 @@ class st7567s:
                 x -= 1
                 err += 1 - 2 * x
 
+    # Draw filled circle
     def fill_circle(self, cx, cy, radius, color):
         """
         Draws a filled circle.
@@ -180,9 +239,10 @@ class st7567s:
                 if x*x + y*y <= radius*radius:
                     self.set_pixel(cx + x, cy + y, color)
 
+    # Draw character
     def draw_char(self, x, y, char, font, color):
         """
-        Draws a single character from the FONT_5X8 array on the screen.
+        Draws a single character from the provided font array on the screen.
 
         Args:
             x (int): X-coordinate of the character's top-left corner.
@@ -204,6 +264,7 @@ class st7567s:
         for row in range(8):
             self.set_pixel(x + len(char_data), y + row, 0)  # Clear space after character
 
+    # Draw a scaled character
     def draw_scaled_char(self, x, y, char, font, scale, color):
         """
         Draws a scaled character from a smaller font.
@@ -212,8 +273,8 @@ class st7567s:
             x (int): X-coordinate.
             y (int): Y-coordinate.
             char (str): Character to draw.
-            scale (int): Scale factor (e.g., 2 for 2x size).
             font (dict): Font dictionary.
+            scale (int): Scale factor (e.g., 2 for 2x size).
             color (int): 1 for pixel ON, 0 for pixel OFF.
         """
         # Ensure the character is in the FONT_5X8 dictionary
@@ -229,6 +290,7 @@ class st7567s:
                         for sy in range(scale):
                             self.set_pixel(x + col * scale + sx, y + row * scale + sy, color)
 
+    # Draw a text string
     def draw_text(self, x, y, text, font, scale, color):
         """
         Draws a string of text on the screen.
@@ -237,6 +299,8 @@ class st7567s:
             x (int): X-coordinate of the text's starting position.
             y (int): Y-coordinate of the text's starting position.
             text (str): The string to draw.
+            font (dict): Font dictionary.
+            scale (int): Scale factor (e.g., 2 for 2x size).
             color (int): 1 for pixel on, 0 for pixel off.
         """
         for i, char in enumerate(text):
@@ -245,7 +309,7 @@ class st7567s:
             else:
                 self.draw_scaled_char(x + i * (6*scale), y, char, font, scale, color)  # Characters are 5 pixels wide + 1 pixel spacing
 
-
+    # Draw a bitmap
     def draw_bitmap(self, x, y, width, height, bitmap, color):
         """
         Draws a bitmap image to the screen.
@@ -265,90 +329,140 @@ class st7567s:
                 if byte_index < len(bitmap) and (bitmap[byte_index] & (1 << bit_index)):
                     self.set_pixel(x + j, y + i, color)
 
-    def draw_bitmap_from_file(self, filename, x, y, color):
+    def draw_bmp_file(self, filename, x_offset=0, y_offset=0, invert=False):
         """
-        Draws a monochrome bitmap (BMP) image to the screen.
+        Draws a monochrome BMP image from a file to the screen.
 
         Args:
-            filename (str): The path to the BMP file.
-            x (int): X-coordinate of the top-left corner of the image.
-            y (int): Y-coordinate of the top-left corner of the image.
-            color (int): 1 for pixel on, 0 for pixel off.
-        """
-        with open(filename, "rb") as f:
-            # Read BMP header
-            f.seek(18)  # Width and height are at byte offset 18
-            width = int.from_bytes(f.read(4), "little")
-            height = int.from_bytes(f.read(4), "little")
-
-            # Read pixel data offset
-            f.seek(10)  # Pixel data offset is at byte offset 10
-            pixel_data_offset = int.from_bytes(f.read(4), "little")
-
-            # Read pixel data
-            f.seek(pixel_data_offset)
-
-            # Each row in BMP is padded to a multiple of 4 bytes
-            row_size = (width + 7) // 8  # Each row is ceil(width / 8) bytes
-            row_padded = (row_size + 3) & ~3  # Row size padded to a multiple of 4 bytes
-
-            # Read the image data row by row (bottom to top, BMP stores rows inverted)
-            for row in range(height):
-                f.seek(pixel_data_offset + (height - 1 - row) * row_padded)  # Inverted row order
-                row_data = f.read(row_size)
-
-                for col in range(width):
-                    byte_index = col // 8
-                    bit_index = 7 - (col % 8)
-                    if row_data[byte_index] & (1 << bit_index):
-                        self.set_pixel(x + col, y + row, color)
-
-    def display_pbm(self, filename, x_offset=0, y_offset=0):
-        """
-        Displays a PBM image on the screen.
-
-        Args:
-            filename (str): Path to the PBM file.
+            filename (str): Path to the BMP file.
             x_offset (int): X-coordinate offset for displaying the image.
             y_offset (int): Y-coordinate offset for displaying the image.
+            invert (bool): If True, inverts the colors (black becomes white and vice versa).
         """
-        with open(filename, 'rb') as pbm_file:
-            # Read the header
-            header = pbm_file.readline().decode().strip()
-            if header not in ('P1', 'P4'):
-                raise ValueError("Unsupported PBM format. Only P1 and P4 are supported.")
+        with open(filename, 'rb') as f:
+            # Read BMP header (14 bytes)
+            f.seek(10)  # Offset to pixel data
+            pixel_data_offset = int.from_bytes(f.read(4), 'little')
+            
+            # Read DIB header
+            f.seek(18)  # Width and height offsets
+            width = int.from_bytes(f.read(4), 'little')
+            height = int.from_bytes(f.read(4), 'little')
+            
+            f.seek(28)  # Bit depth offset
+            bit_depth = int.from_bytes(f.read(2), 'little')
+            if bit_depth != 1:
+                raise ValueError("Only monochrome BMP files (1-bit depth) are supported.")
+            
+            # Calculate row size (padded to a multiple of 4 bytes)
+            row_size = ((width + 31) // 32) * 4
+            
+            # Move to the pixel data
+            f.seek(pixel_data_offset)
+            
+            # Read and render the pixel data
+            for y in range(height):
+                row_data = f.read(row_size)
+                for x in range(width):
+                    byte_index = x // 8
+                    bit_index = 7 - (x % 8)
+                    pixel = (row_data[byte_index] >> bit_index) & 1
+                    
+                    # Apply inversion if requested
+                    if invert:
+                        pixel = 1 - pixel
+                    
+                    # Set pixel on the display (BMP origin is bottom-left)
+                    self.set_pixel(x + x_offset, y_offset + (height - 1 - y), pixel)
 
-            # Read dimensions
+
+    def draw_pbm_file(self, filename, x_offset=0, y_offset=0, invert=False):
+        """
+        Draws a monochrome bitmap image from a file to the screen.
+
+        Args:
+            filename (str): Path to the bitmap file.
+            x_offset (int): X-coordinate offset for displaying the image.
+            y_offset (int): Y-coordinate offset for displaying the image.
+            invert (bool): If True, inverts the colors (black becomes white and vice versa).
+        """
+        with open(filename, "rb") as f:
+            # Example assumes a custom file format or monochrome PBM (P4).
+            # Read the header (adjust based on your file's format).
+            header = f.readline().decode().strip()
+            if header not in ('P1', 'P4'):
+                raise ValueError("Unsupported format: Only P1 (ASCII) and P4 (Binary) PBM files are supported.")
+
+            # Skip comments in the PBM file
             while True:
-                line = pbm_file.readline().decode().strip()
-                if not line.startswith('#'):  # Skip comments
+                line = f.readline().decode().strip()
+                if not line.startswith('#'):
                     width, height = map(int, line.split())
                     break
 
             # Read pixel data
             if header == 'P1':
-                # ASCII PBM (P1)
+                # ASCII PBM (P1): Read as plain 0s and 1s
                 pixel_data = []
-                for line in pbm_file:
+                for line in f:
                     pixel_data.extend(int(bit) for bit in line.decode().split())
             elif header == 'P4':
-                # Binary PBM (P4)
-                pixel_data = list(pbm_file.read())
+                # Binary PBM (P4): Read binary data directly
+                pixel_data = list(f.read())
 
-            # Render the image
+            # Render the bitmap
             for y in range(height):
                 for x in range(width):
                     if header == 'P1':
-                        # P1 format: Each pixel is a bit (0 or 1)
+                        # Each pixel is either 0 or 1
                         pixel = pixel_data[y * width + x]
                     elif header == 'P4':
-                        # P4 format: Each byte contains 8 pixels (MSB first)
+                        # Each byte contains 8 pixels (MSB first)
                         byte_index = (y * width + x) // 8
                         bit_index = 7 - (x % 8)
                         pixel = (pixel_data[byte_index] >> bit_index) & 1
+                    
+                    # Apply inversion if requested
+                    if invert:
+                        pixel = 1 - pixel
+                    
+                    # Draw the pixel
                     self.set_pixel(x + x_offset, y + y_offset, pixel)
 
+    # Draw a line
+    def draw_line(self, x0, y0, x1, y1, color):
+        """
+        Draws a straight line on the screen using Bresenham's line algorithm.
 
+        Args:
+            x0 (int): Starting x-coordinate.
+            y0 (int): Starting y-coordinate.
+            x1 (int): Ending x-coordinate.
+            y1 (int): Ending y-coordinate.
+            color (int): 1 for pixel ON, 0 for pixel OFF.
+        """
+        dx = abs(x1 - x0)
+        dy = abs(y1 - y0)
+        sx = 1 if x0 < x1 else -1
+        sy = 1 if y0 < y1 else -1
+        err = dx - dy
+
+        while True:
+            self.set_pixel(x0, y0, color)  # Set the pixel at the current point
+
+            if x0 == x1 and y0 == y1:
+                break
+            
+            e2 = 2 * err
+            if e2 > -dy:
+                err -= dy
+                x0 += sx
+            if e2 < dx:
+                err += dx
+                y0 += sy
+
+
+    # Update screen using current buffer
     def update_screen(self):
         """
         Writes the buffer to the display.
@@ -359,6 +473,7 @@ class st7567s:
             self.send_command(0x10)                  # Set higher column address
             self.send_data(self.buffer[page * self.width:(page + 1) * self.width])
 
+    # Set screen mode
     def mode(self, enable):
         """ Invert the pixels """       
         if (enable==0):
@@ -368,6 +483,7 @@ class st7567s:
         else:
             self.send_command(self.CMD_NORMAL)  # Normal
 
+    # Enable or Disable screen
     def display(self, enable):
         """ Turn display on or off """
         if (enable==1):
@@ -377,6 +493,7 @@ class st7567s:
         else:
             self.send_command(self.CMD_DISPLAY_ON)
 
+    # Rotate screen 0 or 180 degrees
     def rotate_display(self, rotated):
         if rotated:
             self.send_command(0xA1)  # Reverse column direction
@@ -387,36 +504,3 @@ class st7567s:
             self.send_command(0xC8)  # Normal row direction
             self.LCD_DRAM_OFFSET=0x00
         self.update_screen()
-        
-#     # Draw a character
-#     def draw_char(self, x, y, char, font):
-#         """
-#         Draw a single character on the LCD at (x, y).
-#         :param x: Column position (0-127).
-#         :param y: Page position (0-7).
-#         :param char: Character to draw.
-#         :param font: Font data dictionary {char: [byte rows]}.
-#         """
-#         if char not in font:
-#             return  # Skip undefined characters
-# 
-#         # Select the page and column address
-#         self.send_command(0xB0 | y)  # Set page address
-#         self.send_command(0x00 | (x & 0x0F))  # Set lower nibble of column
-#         self.send_command(0x10 | (x >> 4))  # Set upper nibble of column
-# 
-#         # Send character data
-#         self.send_data(font[char])
-
-#     # Write a string to the LCD
-#     def write_string(self, x, y, text, font):
-#         """
-#         Write a string starting at (x, y).
-#         :param x: Starting column (0-127).
-#         :param y: Page (0-7).
-#         :param text: Text string to display.
-#         :param font: Font data dictionary.
-#         """
-#         for char in text:
-#             self.draw_char(x, y, char, font)
-#             x += 6  # Move cursor to the next character (5 pixels + 1 spacing)
